@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28803.452
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Machine Learning GUI", "Machine Learning GUI\Machine Learning GUI.csproj", "{4950925E-9D06-41F7-9B95-94896D49B69F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Machine Learning", "Machine Learning\Machine Learning.csproj", "{517345D8-7AAE-4D9C-B601-CF9E03B33252}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4950925E-9D06-41F7-9B95-94896D49B69F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4950925E-9D06-41F7-9B95-94896D49B69F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4950925E-9D06-41F7-9B95-94896D49B69F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4950925E-9D06-41F7-9B95-94896D49B69F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{517345D8-7AAE-4D9C-B601-CF9E03B33252}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{517345D8-7AAE-4D9C-B601-CF9E03B33252}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{517345D8-7AAE-4D9C-B601-CF9E03B33252}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{517345D8-7AAE-4D9C-B601-CF9E03B33252}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FCF10ACE-9066-4019-B9BA-4081FEA34479}
+	EndGlobalSection
+EndGlobal
