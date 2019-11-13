@@ -1,4 +1,4 @@
-﻿namespace TheraEngine.Core.Maths.MachineLearning
+﻿namespace ML.ActivationFunctions
 {
     //https://adl1995.github.io/an-overview-of-activation-functions-used-in-neural-networks.html
     public abstract class ActivationFunction

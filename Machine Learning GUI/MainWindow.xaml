@@ -1,20 +1,249 @@
-﻿<Window x:Name="window" x:Class="MachineLearningTester.MainWindow"
+﻿<Window x:Class="MLUI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:MachineLearningTester"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        xmlns:local="clr-namespace:MLUI"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="789.307">
+        Title="Machine Learning GUI" Height="450" Width="800">
+
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type local:Media}">
+            <Grid VerticalAlignment="Center" HorizontalAlignment="Center" Margin="6">
+                <Border HorizontalAlignment="Stretch" VerticalAlignment="Stretch" CornerRadius="4" Background="#44000000">
+                    <Border.RenderTransform>
+                        <TranslateTransform X="5" Y="5" />
+                    </Border.RenderTransform>
+                    <Border.BitmapEffect>
+                        <BlurBitmapEffect Radius="8" />
+                    </Border.BitmapEffect>
+                </Border>
+                <Border Padding="4" Background="White" BorderBrush="#22000000" BorderThickness="1">
+                    <StackPanel Orientation="Vertical">
+                        <Image Source="{Binding Image}"/>
+                        <Label Content="{Binding Metadata}" HorizontalAlignment="Center" HorizontalContentAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+        <Style TargetType="{x:Type ListBox}" x:Key="PhotoListBoxStyle">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBox}" >
+                        <WrapPanel Margin="5" IsItemsHost="True" Orientation="Horizontal" 
+                               ItemHeight="{Binding ElementName=ZoomSlider, Path='Value'}" 
+                               ItemWidth="{Binding ElementName=ZoomSlider, Path='Value'}" 
+                               VerticalAlignment="Top" HorizontalAlignment="Stretch" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type ListBoxItem}">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}" >
+                        <Border SnapsToDevicePixels="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{TemplateBinding Background}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#445B6249"   />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type ItemsControl}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ItemsControl}" >
+                        <WrapPanel IsItemsHost="True" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type GroupBox}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type GroupBox}" >
+                        <Grid>
+                            <ContentPresenter Margin="6" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type Label}">
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style x:Key="MetadataHeader" TargetType="{x:Type Label}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5" >
+                        <LinearGradientBrush.GradientStops>
+                            <GradientStop Offset="0.5" Color="{x:Static SystemColors.AppWorkspaceColor}" />
+                            <GradientStop Offset="2" Color="Transparent" />
+                        </LinearGradientBrush.GradientStops>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <BooleanToVisibilityConverter x:Key="b2v" />
+    </Window.Resources>
     <Grid>
+        
         <Grid.RowDefinitions>
-            <RowDefinition Height="20"/>
-            <RowDefinition/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Menu x:Name="Menu" Margin="0">
-            <MenuItem Header="File"></MenuItem>
-        </Menu>
-        <lvc:CartesianChart Name="Graph" Series="{Binding SeriesCollection}" Grid.Row="1" />
+        
+        <Grid Grid.Row="0" x:Name="BrowseGrid">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="20"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition x:Name="KeyframePanelRowDef" Height="35"/>
+                    <RowDefinition x:Name="VideoPanelRowDef" Height="35"/>
+                </Grid.RowDefinitions>
+                <Menu Grid.Row="0" x:Name="Menu" Margin="0">
+                    <MenuItem x:Name="BtnExtract" Header="Extract Region" Click="BtnOpen_Click"/>
+                </Menu>
+                <Canvas 
+                    SizeChanged="ImageCanvas_SizeChanged"
+                    Grid.Row="1" 
+                    x:Name="imageCanvas"
+                    MouseMove="ImageCanvas_MouseMove"
+                    MouseDown="ImageCanvas_MouseDown"
+                    MouseUp="ImageCanvas_MouseUp"
+                    Background="AliceBlue">
+                    <Rectangle Panel.ZIndex="100" x:Name="rect" Canvas.Left="0" Canvas.Top="0" Width="0" Height="0">
+                        <Rectangle.Fill>
+                            <SolidColorBrush Color="Gray" Opacity="0.1"/>
+                        </Rectangle.Fill>
+                        <Rectangle.Stroke>
+                            <SolidColorBrush Color="Black" Opacity="0.5"/>
+                        </Rectangle.Stroke>
+                    </Rectangle>
+                    <!--<Image 
+                        Visibility="{Binding Path=IsSourceMediaImage, Converter={StaticResource b2v}}"
+                        x:Name="ImageControl"
+                        Source="{Binding Path=SourceMediaPath}" 
+                        Stretch="Uniform"
+                        Width="{Binding RelativeSource={RelativeSource Self}, Path=Parent.ActualWidth}" 
+                        Height="{Binding RelativeSource={RelativeSource Self}, Path=Parent.ActualHeight}">
+                    </Image>-->
+                    <MediaElement 
+                        Visibility="Visible"
+                        x:Name="VideoControl" 
+                        IsMuted="True" 
+                        ScrubbingEnabled="True" 
+                        Stretch="Uniform"
+                        Width="{Binding RelativeSource={RelativeSource Self}, Path=Parent.ActualWidth}" 
+                        Height="{Binding RelativeSource={RelativeSource Self}, Path=Parent.ActualHeight}"
+                        MediaEnded="VideoControl_MediaEnded">
+                    </MediaElement>
+                </Canvas>
+                <Canvas x:Name="KeyframeCanvas" HorizontalAlignment="Stretch" Background="#FF415468" Grid.Row="2">
+                    <Rectangle 
+                        Canvas.Left="0" 
+                        Canvas.Top="0"
+                        Panel.ZIndex="100"
+                        x:Name="TimeIndicator"
+                        Width="2"
+                        Height="{Binding RelativeSource={RelativeSource Self}, Path=Parent.ActualHeight}"
+                        StrokeThickness="2">
+                        <Rectangle.Fill>
+                            <SolidColorBrush Color="Red" Opacity="1"/>
+                        </Rectangle.Fill>
+                        <Rectangle.Stroke>
+                            <SolidColorBrush Color="Red" Opacity="1"/>
+                        </Rectangle.Stroke>
+                    </Rectangle>
+                </Canvas>
+                <Grid x:Name="VideoControlPanel" Grid.Row="3" Background="#FF7CA3B7">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" x:Name="BtnSkipStart" Margin="3" Width="30" Click="BtnSkipStart_Click" FontWeight="Normal" FontStyle="Normal">|&lt;</Button>
+                    <Button Grid.Column="1" x:Name="BtnSkipBackward" IsEnabled="False" Margin="3" Width="30" Click="BtnSkipBackward_Click" FontWeight="Normal">&lt;</Button>
+                    <Button Grid.Column="2" x:Name="BtnPlay" Margin="3" HorizontalAlignment="Stretch" Click="BtnPlay_Click" Content="Play" FontWeight="Normal"/>
+                    <Button Grid.Column="3" x:Name="BtnSkipForward" IsEnabled="False" Margin="3" Width="30" Click="BtnSkipForward_Click" FontWeight="Normal">&gt;</Button>
+                    <Button Grid.Column="4" x:Name="BtnSkipEnd" Margin="3" Width="30" Click="BtnSkipEnd_Click" FontWeight="Normal" FontFamily="Segoe UI">&gt;|</Button>
+                    <Label Grid.Column="5" x:Name="TimeLabel" VerticalAlignment="Center" FontWeight="Normal" Margin="3,0,0,0">0:00 / 0:00</Label>
+                    <CheckBox Grid.Column="6" x:Name="ChkLoop" VerticalAlignment="Center" Checked="ChkLoop_Checked" FontWeight="Normal" Margin="9,0,9,0" FontFamily="Segoe UI">Loop</CheckBox>
+                </Grid>
+            </Grid>
+            <GridSplitter 
+                Grid.Column="1" 
+                Width="5" 
+                HorizontalAlignment="Stretch"/>
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
+                <GroupBox Grid.Row="0">
+                    <ScrollViewer 
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+                        <ListBox 
+                            Style="{StaticResource PhotoListBoxStyle}" 
+                            IsSynchronizedWithCurrentItem="True"
+                            Name="PhotosListBox" 
+                            Margin="5" 
+                            SelectionMode="Extended" 
+                            ItemsSource="{Binding Media}" 
+                            SelectedIndex="0" 
+                            MouseDoubleClick="PhotosListBox_MouseDoubleClick">
+                        </ListBox>
+                    </ScrollViewer>
+                </GroupBox>
+                <Slider 
+                    Margin="0,8,0,0"
+                    Grid.Row="1"
+                    Name="ZoomSlider"
+                    Orientation="Horizontal" 
+                    Minimum="80" 
+                    Maximum="320" 
+                    Value="160" 
+                    TickFrequency="80"
+                    TickPlacement="BottomRight" 
+                    SmallChange="5"
+                    LargeChange="20" />
+            </Grid>
+        </Grid>
+        <ItemsControl Grid.Row="1">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Grid>
+                    
+                    </Grid>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Grid>
 </Window>

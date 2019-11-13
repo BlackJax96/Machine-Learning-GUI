@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TheraEngine.Core.Maths.MachineLearning
+namespace ML.ActivationFunctions
 {
     /// <summary>
     /// [-1, 1]
@@ -8,12 +8,8 @@ namespace TheraEngine.Core.Maths.MachineLearning
     public class AF_Sine : ActivationFunction
     {
         public override double Value(double sum)
-        {
-            return Math.Sin(sum);
-        }
+            => Math.Sin(sum);
         public override double Derivative(double sum)
-        {
-            return Math.Cos(sum);
-        }
+            => Math.Cos(sum);
     }
 }

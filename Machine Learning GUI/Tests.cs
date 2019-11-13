@@ -1,10 +1,14 @@
-﻿using ML.Extensions;
+﻿using ML;
+using ML.ActivationFunctions;
+using ML.CostFunctions;
+using ML.Extensions;
+using ML.Layers;
+using ML.Optimizers;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using TheraEngine.Core.Maths.MachineLearning;
 
-namespace MachineLearningTester
+namespace MLUI
 {
     public static class Tests
     {
@@ -46,15 +50,16 @@ namespace MachineLearningTester
 
             Network nw = new Network(2,
                 new CF_DiffSquared(),
-                NeuronLayer.Dense(new AF_Sine(), 2, true),
-                NeuronLayer.Dense(new AF_Logistic(), 1, true));
+                new O_Momentum(),
+                new DenseLayer(new AF_Sine(), 2, true),
+                new DenseLayer(new AF_Logistic(), 1, true));
 
             Stopwatch timer = new Stopwatch();
 
             nw.CostChanged += CostChangedMethod;
             timer.Start();
 
-            await Task.Run(() => nw.Train(targetError, EErrorTrainingType.Individual, learningRate, momentum, false, trainingSets));
+            await Task.Run(() => nw.Train(targetError, EErrorTrainingType.Individual, false, trainingSets));
 
             timer.Stop();
             nw.CostChanged -= CostChangedMethod;

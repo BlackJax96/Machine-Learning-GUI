@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TheraEngine.Core.Maths.MachineLearning
+namespace ML.ActivationFunctions
 {
     /// <summary>
     /// [-1, 1]
@@ -8,9 +8,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
     public class AF_TanH : ActivationFunction
     {
         public override double Value(double sum)
-        {
-            return Math.Tanh(sum);
-        }
+            => Math.Tanh(sum);
         public override double Derivative(double sum)
         {
             double y = Value(sum);

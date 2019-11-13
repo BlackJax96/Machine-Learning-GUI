@@ -1,4 +1,4 @@
-﻿namespace TheraEngine.Core.Maths.MachineLearning
+﻿namespace ML.ActivationFunctions
 {
     /// <summary>
     /// [-infinity, infinity)

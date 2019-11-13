@@ -1,5 +1,9 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
+using ML.ActivationFunctions;
+using ML.CostFunctions;
+using ML.Layers;
+using ML.Optimizers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -7,7 +11,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace TheraEngine.Core.Maths.MachineLearning
+namespace ML
 {
     public enum EErrorTrainingType
     {
@@ -17,13 +21,15 @@ namespace TheraEngine.Core.Maths.MachineLearning
     }
     public delegate void DelForwardPropagated(double[] output);
     public delegate void DelCostChanged(double oldCost, double newCost, int iteration);
-    public class Network : IEnumerable<NeuronLayer>
+    public class Network : IEnumerable<Layer>
     {
         public Network() { }
-        public Network(int inputCount, CostFunction costFunc, params NeuronLayer[] layers)
+        public Network(int inputCount, CostFunction costFunc, Optimizer optimizer, params Layer[] layers)
         {
             CostFunction = costFunc;
-            NeuronLayer first = NeuronLayer.Dense(null, inputCount, false);
+            Optimizer = optimizer;
+
+            Layer first = new DenseLayer(null, inputCount, false);
             if (layers == null || layers.Length == 0)
                 return;
             for (int i = 1; i < layers.Length; ++i)
@@ -39,18 +45,22 @@ namespace TheraEngine.Core.Maths.MachineLearning
         public double ConfidencePercentage => (1.0f - _currentCost) * 100.0f;
 
         private double _currentCost;
-        private NeuronLayer _input;
+        private Layer _input;
 
         /// <summary>
         /// The method to use to calculate the cost of an output neuron.
         /// </summary>
         public CostFunction CostFunction { get; set; } = new CF_DiffSquared();
         /// <summary>
+        /// 
+        /// </summary>
+        public Optimizer Optimizer { get; set; } = new O_Momentum();
+        /// <summary>
         /// This is the first layer in the network, used solely for input.
         /// All layers after this one are either hidden layers or the output layer.
         /// Layers attached before this one are not used.
         /// </summary>
-        public NeuronLayer Input
+        public Layer Input
         {
             get => _input;
             set
@@ -59,7 +69,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
                 if (_input != null)
                 {
                     Random random = new Random();
-                    NeuronLayer layer = _input;
+                    Layer layer = _input;
                     layer.Initialize(this, random, false);
                     while (layer.Next != null)
                     {
@@ -71,7 +81,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
                 }
             }
         }
-        public NeuronLayer Output { get; private set; }
+        public Layer Output { get; private set; }
 
         internal void LayersChanged()
         {
@@ -107,15 +117,15 @@ namespace TheraEngine.Core.Maths.MachineLearning
             if (Input == null)
                 throw new InvalidOperationException($"{nameof(Input)} cannot be null.");
             if (Input.NeuronOutValues == null)
-                throw new InvalidOperationException($"{nameof(Input)}.{nameof(NeuronLayer.NeuronOutValues)} cannot be null.");
+                throw new InvalidOperationException($"{nameof(Input)}.{nameof(DenseLayer.NeuronOutValues)} cannot be null.");
             if (input == null)
                 throw new InvalidOperationException($"{nameof(input)} cannot be null.");
             if (Input.NeuronOutValues.Length != input.Length)
-                throw new InvalidOperationException($"{nameof(input)}.{nameof(NeuronLayer.NeuronOutValues)} count does not match {nameof(Input)} count.");
+                throw new InvalidOperationException($"{nameof(input)}.{nameof(DenseLayer.NeuronOutValues)} count does not match {nameof(Input)} count.");
 
             Input.NeuronOutValues = input;
 
-            NeuronLayer output = Input.FeedForward();
+            Layer output = Input.Forward();
 
             return output.NeuronOutValues;
         }
@@ -129,15 +139,15 @@ namespace TheraEngine.Core.Maths.MachineLearning
             if (Input == null)
                 throw new InvalidOperationException($"{nameof(Input)} cannot be null.");
             if (Input.NeuronOutValues == null)
-                throw new InvalidOperationException($"{nameof(Input)}.{nameof(NeuronLayer.NeuronOutValues)} cannot be null.");
+                throw new InvalidOperationException($"{nameof(Input)}.{nameof(DenseLayer.NeuronOutValues)} cannot be null.");
             if (input == null)
                 throw new InvalidOperationException($"{nameof(input)} cannot be null.");
             if (Input.NeuronOutValues.Length != input.Length)
-                throw new InvalidOperationException($"{nameof(input)}.{nameof(NeuronLayer.NeuronOutValues)} count does not match {nameof(Input)} count.");
+                throw new InvalidOperationException($"{nameof(input)}.{nameof(DenseLayer.NeuronOutValues)} count does not match {nameof(Input)} count.");
 
             Input.NeuronOutValues = input;
 
-            NeuronLayer output = Input.FeedForward();
+            Layer output = Input.Forward();
 
             totalError = 0.0;
             double[] error = new double[output.NeuronOutValues.Length];
@@ -148,8 +158,6 @@ namespace TheraEngine.Core.Maths.MachineLearning
         }
         public void Train(
             int iterations,
-            double learningRate,
-            double momentum,
             params (double[] Input, double[] Output)[] trainingSets)
         {
             if (trainingSets == null || trainingSets.Length == 0)
@@ -157,11 +165,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
             if (Input == null)
                 throw new InvalidOperationException($"Network needs {nameof(Input)} to be set to forward propagate through layers.");
             if (Input.Next == null)
-                throw new InvalidOperationException($"Network needs at least two layers (set {nameof(Input)}.{nameof(NeuronLayer.Next)}).");
-            if (learningRate <= 0.0)
-                throw new InvalidOperationException($"{nameof(learningRate)} must be greater than zero.");
-            if (momentum < 0.0)
-                throw new InvalidOperationException($"{nameof(momentum)} must be greater than or equal to zero.");
+                throw new InvalidOperationException($"Network needs at least two layers (set {nameof(Input)}.{nameof(DenseLayer.Next)}).");
             if (iterations <= 0)
                 throw new InvalidOperationException($"{nameof(iterations)} must be greater than zero.");
             if (trainingSets.Any(x => 
@@ -177,7 +181,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
                 setIndex = iteration % trainingSets.Length;
                 expectedOutput = trainingSets[setIndex].Output;
                 Input.NeuronOutValues = trainingSets[setIndex].Input;
-                Input.FeedForward();
+                Input.Forward();
 
                 totalCost = 0.0;
                 for (int outputNeuronIndex = 0; outputNeuronIndex < Output.NeuronOutValues.Length; ++outputNeuronIndex)
@@ -194,7 +198,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
 
                 ForwardPropagated?.Invoke(Output.NeuronOutValues);
 
-                Output.BackPropagate(learningRate, momentum);
+                Output.Backward();
                 
                 BackPropagated?.Invoke();
             }
@@ -202,8 +206,6 @@ namespace TheraEngine.Core.Maths.MachineLearning
         public void Train(
             double targetError,
             EErrorTrainingType errorType,
-            double learningRate,
-            double momentum,
             bool trainRandomly,
             params (double[] Input, double[] Output)[] trainingSets)
         {
@@ -212,11 +214,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
             if (Input == null)
                 throw new InvalidOperationException($"Network needs {nameof(Input)} to be set to forward propagate through layers.");
             if (Input.Next == null)
-                throw new InvalidOperationException($"Network needs at least two layers (set {nameof(Input)}.{nameof(NeuronLayer.Next)}).");
-            if (learningRate <= 0.0)
-                throw new InvalidOperationException($"{nameof(learningRate)} must be greater than zero.");
-            if (momentum < 0.0)
-                throw new InvalidOperationException($"{nameof(momentum)} must be greater than or equal to zero.");
+                throw new InvalidOperationException($"Network needs at least two layers (set {nameof(Input)}.{nameof(DenseLayer.Next)}).");
             if (targetError <= 0)
                 throw new InvalidOperationException($"{nameof(targetError)} must be greater than zero.");
             if (trainingSets.Any(x =>
@@ -260,7 +258,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
                 var set = trainingSets[setIndex];
                 expectedOutput = set.Output;
                 Input.NeuronOutValues = set.Input;
-                Input.FeedForward();
+                Input.Forward();
 
                 totalCost = 0.0;
                 for (int outputNeuronIndex = 0; outputNeuronIndex < Output.NeuronOutValues.Length; ++outputNeuronIndex)
@@ -284,7 +282,7 @@ namespace TheraEngine.Core.Maths.MachineLearning
                 if (checkTrainingSuccess(targetError, indivError))
                     break;
 
-                Output.BackPropagate(learningRate, momentum);
+                Output.Backward();
                 ++TotalIterationsTrained;
                 ++iteration;
             }
@@ -304,80 +302,87 @@ namespace TheraEngine.Core.Maths.MachineLearning
         private bool CheckTrainingSuccessTotal(double targetError, double[] indivError)
             => Math.Abs(CurrentCost) < targetError;
         
-        public void ToCSV(string path)
-        {
-            using (CsvWriter writer = new CsvWriter(new StreamWriter(path, false)))
+        public Network Clone()
+            => new Network
             {
-                writer.WriteField(Input.NeuronOutValues.Length.ToString(CultureInfo.InvariantCulture));
-                writer.WriteField(CostFunction.GetType().AssemblyQualifiedName.Replace(",", "|"));
-                writer.WriteField(CurrentCost.ToString(CultureInfo.InvariantCulture));
-                writer.NextRecord();
+                CostFunction = CostFunction,
+                Input = Input.Clone()
+            };
+        
+        //public void ToCSV(string path)
+        //{
+        //    using (CsvWriter writer = new CsvWriter(new StreamWriter(path, false)))
+        //    {
+        //        writer.WriteField(Input.NeuronOutValues.Length.ToString(CultureInfo.InvariantCulture));
+        //        writer.WriteField(CostFunction.GetType().AssemblyQualifiedName.Replace(",", "|"));
+        //        writer.WriteField(CurrentCost.ToString(CultureInfo.InvariantCulture));
+        //        writer.NextRecord();
 
-                NeuronLayer layer = Input;
-                while (layer != null)
-                {
-                    writer.WriteField(layer.Activation.GetType().AssemblyQualifiedName.Replace(",", "|"));
-                    writer.WriteField(layer.Weights.Length.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteField(layer.Biases.Length.ToString(CultureInfo.InvariantCulture));
-                    writer.WriteField(layer.UseBias);
+        //        Layer layer = Input;
+        //        while (layer != null)
+        //        {
+        //            writer.WriteField(layer.Activation.GetType().AssemblyQualifiedName.Replace(",", "|"));
+        //            writer.WriteField(layer.Weights.Length.ToString(CultureInfo.InvariantCulture));
+        //            writer.WriteField(layer.Biases.Length.ToString(CultureInfo.InvariantCulture));
+        //            writer.WriteField(layer.UseBias);
 
-                    for (int i = 0; i < layer.Weights.Length; ++i)
-                        writer.WriteField(layer.Weights[i].ToString(CultureInfo.InvariantCulture));
+        //            for (int i = 0; i < layer.Weights.Length; ++i)
+        //                writer.WriteField(layer.Weights[i].ToString(CultureInfo.InvariantCulture));
 
-                    for (int i = 0; i < layer.Biases.Length; ++i)
-                        writer.WriteField(layer.Biases[i].ToString(CultureInfo.InvariantCulture));
+        //            for (int i = 0; i < layer.Biases.Length; ++i)
+        //                writer.WriteField(layer.Biases[i].ToString(CultureInfo.InvariantCulture));
 
-                    writer.NextRecord();
-                    layer = layer.Next;
-                }
-            }
-        }
-        public static Network FromCSV(string path)
-        {
-            Network net = new Network();
-            Configuration config = new Configuration();
-            using (CsvReader reader = new CsvReader(new StreamReader(path), config))
-            {
-                int inputCount = reader.GetField<int>(0);
-                string costTypeStr = reader.GetField(1).Replace("|", ",");
-                double cost = reader.GetField<double>(2);
+        //            writer.NextRecord();
+        //            layer = layer.Next;
+        //        }
+        //    }
+        //}
+        //public static Network FromCSV(string path)
+        //{
+        //    Network net = new Network();
+        //    Configuration config = new Configuration();
+        //    using (CsvReader reader = new CsvReader(new StreamReader(path), config))
+        //    {
+        //        int inputCount = reader.GetField<int>(0);
+        //        string costTypeStr = reader.GetField(1).Replace("|", ",");
+        //        double cost = reader.GetField<double>(2);
 
-                Type costType = Type.GetType(costTypeStr);
-                net.CostFunction = Activator.CreateInstance(costType) as CostFunction;
+        //        Type costType = Type.GetType(costTypeStr);
+        //        net.CostFunction = Activator.CreateInstance(costType) as CostFunction;
 
-                NeuronLayer prev = NeuronLayer.Dense(null, inputCount, false);
+        //        Layer prev = new Layer(null, inputCount, false);
 
-                net.Input = prev;
-                net.CurrentCost = cost;
+        //        net.Input = prev;
+        //        net.CurrentCost = cost;
 
-                while (reader.Read())
-                {
-                    string activTypeStr = reader.GetField(0).Replace("|", ",");
-                    int weightCount = reader.GetField<int>(1);
-                    int biasCount = reader.GetField<int>(2);
-                    bool useBias = reader.GetField<bool>(3);
+        //        while (reader.Read())
+        //        {
+        //            string activTypeStr = reader.GetField(0).Replace("|", ",");
+        //            int weightCount = reader.GetField<int>(1);
+        //            int biasCount = reader.GetField<int>(2);
+        //            bool useBias = reader.GetField<bool>(3);
                     
-                    Type activType = Type.GetType(activTypeStr);
-                    ActivationFunction activFunc = Activator.CreateInstance(activType) as ActivationFunction;
+        //            Type activType = Type.GetType(activTypeStr);
+        //            ActivationFunction activFunc = Activator.CreateInstance(activType) as ActivationFunction;
 
-                    NeuronLayer layer = NeuronLayer.Dense(activFunc, biasCount, useBias);
+        //            Layer layer = new Layer(activFunc, biasCount, useBias);
 
-                    for (int i = 0; i < weightCount; ++i)
-                        layer.Weights[i] = reader.GetField<double>(i + 4);
+        //            for (int i = 0; i < weightCount; ++i)
+        //                layer.Weights[i] = reader.GetField<double>(i + 4);
 
-                    for (int i = 0; i < biasCount; ++i)
-                        layer.Biases[i] = reader.GetField<double>(i + 4 + weightCount);
+        //            for (int i = 0; i < biasCount; ++i)
+        //                layer.Biases[i] = reader.GetField<double>(i + 4 + weightCount);
 
-                    prev.Next = layer;
-                    prev = layer;
-                }
-            }
-            return net;
-        }
+        //            prev.Next = layer;
+        //            prev = layer;
+        //        }
+        //    }
+        //    return net;
+        //}
 
-        public IEnumerator<NeuronLayer> GetEnumerator()
+        public IEnumerator<Layer> GetEnumerator()
         {
-            NeuronLayer layer = _input;
+            Layer layer = _input;
             while (layer != null)
             {
                 yield return layer;

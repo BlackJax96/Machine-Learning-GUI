@@ -1,4 +1,4 @@
-﻿namespace TheraEngine.Core.Maths.MachineLearning
+﻿namespace ML.CostFunctions
 {
     public abstract class CostFunction
     {

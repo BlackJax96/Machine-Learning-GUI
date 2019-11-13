@@ -1,4 +1,4 @@
-﻿namespace TheraEngine.Core.Maths.MachineLearning
+﻿namespace ML.CostFunctions
 {
     public class CF_DiffSquared : CostFunction
     {
